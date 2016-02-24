@@ -162,6 +162,20 @@ end
 先分析一下nginx配置文件的结构:
 
 nginx配置文件中主要包括六块： **main，events，http，server，location，upstream**
+
+
+> main块：主要控制nginx子进程的所属用户/用户组、派生子进程数、错误日志位置/级别、pid位置、子进程优先级、进程对应cpu、进程能够打开的文件描述符数目等
+
+> events块：控制nginx处理连接的方式
+
+> http块：是nginx处理http请求的主要配置模块，大多数配置都在这里面进行
+> 
+> server块：是nginx中主机的配置块，可以配置多个虚拟主机
+> 
+> location块：是server中对应的目录级别的控制块，可以有多个
+> 
+> upstream块：是nginx做反向代理和负载均衡的配置块，可以有多个
+     
      
 ````
 # main
@@ -195,9 +209,23 @@ http {
     sendfile on; #开启高效文件传输模式。 普通应用on, 下载等需要IO高负荷的off, 图片显示不正常则off
     
     gzip  on;  # 启用gzip压缩输出
+    
+    gzip_disable "msie6";
+    
+    gzip_http_version 1.1;  # 压缩版本
+    
+    gzip_proxied any;
+    
+    gzip_min_length 500; # 最小压缩长度
+    
+    gzip_types  text/plain text/xml text/css
+                text/comma-separated-values text/javascript
+                application/x-javascript application/atom+xml;  # 压缩的类型
+      
 
+    # 设置服务器的地址，可作为负载均衡  
     upstream {
-
+        server unix:/data/app/www/bus_api/shared/tmp/pids/unicorn.sock fail_timeout=0;
     }
     
     server {
@@ -211,18 +239,7 @@ http {
 
 ````
 
-> main块：主要控制nginx子进程的所属用户/用户组、派生子进程数、错误日志位置/级别、pid位置、子进程优先级、进程对应cpu、进程能够打开的文件描述符数目等
 
-> events块：控制nginx处理连接的方式
-
-> http块：是nginx处理http请求的主要配置模块，大多数配置都在这里面进行
-> 
-> server块：是nginx中主机的配置块，可以配置多个虚拟主机
-> 
-> location块：是server中对应的目录级别的控制块，可以有多个
-> 
-> upstream块：是nginx做反向代理和负载均衡的配置块，可以有多个
-     
    
 
 
