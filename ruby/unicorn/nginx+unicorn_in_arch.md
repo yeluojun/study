@@ -189,7 +189,6 @@ worker_processes  1;   # nginx 进程数，一般为cpu核心数或核心数的2
 events {
 
     #use epoll;     #事件模型，use [ kqueue | rtsig | epoll | /dev/poll | select | poll ];
- 
     worker_connections  1024;      #单个进程最大连接数 
 }
 
@@ -206,7 +205,7 @@ http {
                      
     access_log  logs/access.log main;     
                 
-    sendfile on; #开启高效文件传输模式。 普通应用on, 下载等需要IO高负荷的off, 图片显示不正常则off
+    sendfile on; #开启高效文件传输模式。 普通应用on, 下载等需要IO高负荷的off, 图片显示不正常的off
     
     gzip  on;  # 启用gzip压缩输出
     
@@ -224,22 +223,70 @@ http {
       
 
     # 设置服务器的地址，可作为负载均衡  
-    upstream {
+    upstream unicorn {
         server unix:/data/app/www/bus_api/shared/tmp/pids/unicorn.sock fail_timeout=0;
     }
     
-    server {
-    
-         location {
-             
-         }   
+    #server {      
+    #
+    #   }   
        
     }
+    
+    include servers-enabled/bus_api/*;    # 包含这么一个配置，配置的路径：/servers-enabled/bus_api/... 下面
 }
 
 ````
 
+创建 bus_api的配置：
 
+```
+mkdir -p servers-enabled/bus_api/ 
+
+vim aervers-enabled/bus_api/bus_api.conf
+```
+
+配置 bus_api.conf:
+
+```
+server {
+    listen 8089;  # 端口
+  
+    server_name 127.0.0.1;  # Replace this with your site's domain. 主机域名
+
+    keepalive_timeout 300;  # 超时的时间
+
+    client_max_body_size 4G;  # 请求体积，默认2m ,对当请求体积过大于设置的值时会报413 Request Entity Too Large的错误
+
+    root /data/app/www/bus_api/current/public ;  # 主机站点的根目录
+
+    #try_files $uri/index.html $uri.html $uri @unicorn;  # 判断文件是否存在，有则返回，没有返回最后一个参数
+    
+    # 对于一个请求，location的匹配规则。 先匹配普通location ，再匹配正则location
+    location /{
+          # 下面是反向代理的一些设置
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header Host $http_host;
+          proxy_set_header X-Forwarded_Proto $scheme;
+          proxy_redirect off; 
+          proxy_pass http://unicorn;  # 对应 /etc/nginx/nginx.conf 
+          proxy_read_timeout 300s;
+          proxy_send_timeout 300s;
+    }
+
+    error_page 500 502 503 504 /500.html;
+    location = /500.html {  
+        root /home/yeluojun/rails_app/bus_api/current/public;
+    }
+
+    # 这里是通过nginx来访问 /assets/,不过这里不用通过这种方式访问。unicron会匹配路由
+    #location ~* ^(/assets|/favicon.ico){
+    #    access_log off;
+    #    expires max;
+    #}
+}
+
+```
    
 
 
