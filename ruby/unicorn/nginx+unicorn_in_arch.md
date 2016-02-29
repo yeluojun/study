@@ -33,7 +33,7 @@ gem 'unicorn'
 
 
 
-#### 配置 config/unicorn.rb
+#### 配置 /config/unicorn/production.rb
 
 ```ruby
 # Sample verbose configuration file for Unicorn (not Rack)
@@ -262,7 +262,7 @@ server {
 
     #try_files $uri/index.html $uri.html $uri @unicorn;  # 判断文件是否存在，有则返回，没有返回最后一个参数
     
-    # 对于一个请求，location的匹配规则。 先匹配普通location ，再匹配正则location
+    # 对于一个请求，location的匹配规则。 先匹配普通location ，再匹配正则location, 可以配置不匹配正则，精确匹配后不会再往下匹配等，http://www.cnblogs.com/lidabo/p/4169396.html（参考）
     location /{
           # 下面是反向代理的一些设置
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -287,10 +287,137 @@ server {
 }
 
 ```
+
+#### 配置 lib/capistrano/tasks/unicorn.rake
+
+```ruby
+# fork from http://qiita.com/satococoa/items/9b0cc416ffc042680b9b
+namespace :unicorn do
+  task :environment do
+    set :unicorn_pid, "#{shared_path}/tmp/pids/unicorn.pid"
+    set :unicorn_config, "#{current_path}/config/unicorn/#{fetch(:rails_env)}.conf.rb"
+  end
+
+  def start_unicorn
+    within current_path do
+      execute :bundle, :exec, :unicorn, "-c #{fetch(:unicorn_config)} -E #{fetch(:rails_env)} -D"
+    end
+  end
+
+  def stop_unicorn
+    execute :kill, "-s QUIT $(< #{fetch(:unicorn_pid)})"
+  end
+
+  def reload_unicorn
+    execute :kill, "-s USR2 $(< #{fetch(:unicorn_pid)})"
+    execute :kill, "-s QUIT $(< #{fetch(:unicorn_pid)}.oldbin)"
+  end
+
+  def force_stop_unicorn
+    execute :kill, "$(< #{fetch(:unicorn_pid)})"
+  end
+
+  desc 'Start unicorn server'
+  task :start => :environment do
+    on roles(:app) do
+      start_unicorn
+    end
+  end
+
+  desc 'Stop unicorn server gracefully'
+  task :stop => :environment do
+    on roles(:app) do
+      stop_unicorn
+    end
+  end
+  
+  desc 'Restart unicorn server gracefully'
+  task :restart => :environment do
+    on roles(:app) do
+      if test("[ -f #{fetch(:unicorn_pid)} ]")
+        reload_unicorn
+      else
+        start_unicorn
+      end
+    end
+  end
+
+  desc 'Stop unicorn server immediately'
+  task :force_stop => :environment do
+    on roles(:app) do
+      force_stop_unicorn
+    end
+  end
+end
+
+```
+
+#### 配置 config/deploy.rb
+
+```ruby
+# config valid only for current version of Capistrano
+lock '3.4.0'
+
+set :application, 'bus_api'
+set :repo_url, ' git@g***.git'
+
+# Default branch is :master
+# ask :branch, `git rev-parse --abbrev-ref HEAD`.chomp
+
+# Default deploy_to directory is /var/www/my_app_name
+set :deploy_to, '/data/app/www/bus_api'
+
+# Default value for :scm is :git
+# set :scm, :git
+
+# Default value for :format is :pretty
+set :format, :pretty
+
+# Default value for :log_level is :debug
+# set :log_level, :debug
+
+# Default value for :pty is false
+# set :pty, true
+
+# Default value for :linked_files is []
+set :linked_files, fetch(:linked_files, []).push('config/database.yml', 'config/secrets.yml')
+
+# Default value for linked_dirs is []
+set :linked_dirs, fetch(:linked_dirs, []).push('log', 'tmp/pids', 'tmp/cache', 'tmp/sockets', 'vendor/bundle', 'public/system')
+
+# Default value for default_env is {}
+# set :default_env, { path: "/opt/ruby/bin:$PATH" }
+
+# Default value for keep_releases is 5
+# set :keep_releases, 5
+
+
+set :unicorn_pid, -> { "#{shared_path}/tmp/pids/unicorn.pid" }  # 需要和unicorn.rake设置的pid一致
+
+
+set :whenever_identifier, -> { "#{fetch(:application)}_#{fetch(:stage)}" }
+
+namespace :deploy do
+  desc 'Restart application'
+  task :restart do
+    invoke 'unicorn:restart'
+  end
+  after 'deploy:publishing', 'deploy:restart'
+end
+
+```
    
+此时,配置已经完成。cap production deploy --trace 即可开始部署。 cap -T 可以查看一些其他的任务。 
 
 
-配置 /etc/nginx/nginx.conf
+## 总结：
+
+部署的基本流程和nginx的基本配置基本熟悉，但是有很多原理层面的东西没有很深刻的理解。往后的学习将是通过源码的阅读等方式去理解
+这些东西。
+
+
+
+
 
 
 
