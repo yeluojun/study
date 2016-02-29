@@ -407,7 +407,7 @@ end
 
 ```
    
-此时,配置已经完成。cap production deploy --trace 即可开始部署。 cap -T 可以查看一些其他的任务。 
+
 
 
 #### 配置Capfile
@@ -439,6 +439,7 @@ Dir.glob('lib/capistrano/tasks/*.rake').each { |r| import r }
 
 ```
 
+此时,配置已经完成。cap production deploy --trace 即可开始部署。 cap -T 可以查看一些其他的任务。 
 
 ## 总结：
 
