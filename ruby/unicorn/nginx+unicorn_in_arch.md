@@ -410,6 +410,36 @@ end
 此时,配置已经完成。cap production deploy --trace 即可开始部署。 cap -T 可以查看一些其他的任务。 
 
 
+#### 配置Capfile
+
+```ruby
+# Load DSL and set up stages
+require 'capistrano/setup'
+
+# Include default deployment tasks
+require 'capistrano/deploy'
+
+# Include tasks from other gems included in your Gemfile
+#
+# For documentation on these, see for example:
+#
+#   https://github.com/capistrano/rvm
+#   https://github.com/capistrano/bundler
+#   https://github.com/capistrano/rails
+#
+require 'capistrano/rvm'
+require 'capistrano/bundler'
+require 'capistrano/rails/assets'
+require 'capistrano/rails/migrations'
+
+require 'whenever/capistrano'
+
+# Load custom tasks from `lib/capistrano/tasks` if you have any defined
+Dir.glob('lib/capistrano/tasks/*.rake').each { |r| import r }
+
+```
+
+
 ## 总结：
 
 部署的基本流程和nginx的基本配置基本熟悉，但是有很多原理层面的东西没有很深刻的理解。往后的学习将是通过源码的阅读等方式去理解
