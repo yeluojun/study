@@ -23,7 +23,7 @@ $ rake example_one
     pus 'this is other example'
   end
   
-  task :another_example => other_example do
+  task :another_example => :other_example do
     puts 'this is another example'
   end
   
